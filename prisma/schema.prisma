@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  games        GameSession[]
+  results      GameResult[]
+}
+model GameSession {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version   Int          @default(1)
+  wave      Int          @default(0)
+  gold      Int          @default(500)
+  baseHp    Int          @default(20)
+  score     Int          @default(0)
+  kills     Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  towers    Tower[]
+  result    GameResult?
+  @@index([userId, updatedAt])
+}
+model Tower {
+  id            String      @id @default(uuid())
+  gameSessionId String
+  gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+  type          String
+  positionX     Float
+  positionY     Float       @default(0)
+  positionZ     Float
+  level         Int
+  strategy      String
+  @@index([gameSessionId])
+}
+model GameResult {
+  id        String      @id @default(uuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId    String      @unique
+  game      GameSession @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  score     Int
+  wave      Int
+  createdAt DateTime    @default(now())
+  @@index([score])
+}
