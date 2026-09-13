@@ -3,13 +3,16 @@ import { useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { cameraConfig } from '../../game/config/battlefield';
 
+/** Viewports narrower than this aspect ratio zoom out so the whole island stays in frame. */
+const REFERENCE_ASPECT = 1.9;
+
 export function StrategyCamera({ resetKey }: { resetKey: number }) {
   const { camera, size } = useThree();
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   useEffect(() => { controls.current?.reset(); }, [resetKey]);
   useEffect(() => {
     // Apply after reset: OrbitControls restores its own initial zoom value.
-    camera.zoom = Math.min(1, size.width / size.height / 1.9);
+    camera.zoom = Math.min(1, size.width / size.height / REFERENCE_ASPECT);
     camera.updateProjectionMatrix();
   }, [camera, size.width, size.height, resetKey]);
   return <OrbitControls ref={controls} makeDefault target={cameraConfig.target}

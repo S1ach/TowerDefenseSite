@@ -9,6 +9,12 @@ interface Snapshot {
   enemies: { id: number; x: number; z: number; type: EnemyType }[];
   towers: { id: number; x: number; z: number; type: TowerType; level: number }[];
 }
+const MAP_WIDTH = 560, MAP_HEIGHT = 440;
+/** World units to canvas pixels; the offset centres the 28 x 22 island area. */
+const MAP_SCALE = 20, MAP_OFFSET_X = 14, MAP_OFFSET_Z = 11;
+/** Enemy markers ease toward the last snapshot so 5 Hz updates look continuous. */
+const SMOOTHING = 14;
+const SNAPSHOT_INTERVAL_MS = 200;
 function SpectatorMap({ snapshot }: { snapshot: Snapshot }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const target = useRef(snapshot);
@@ -21,9 +27,9 @@ function SpectatorMap({ snapshot }: { snapshot: Snapshot }) {
       const context = canvas.current?.getContext('2d');
       if (context) {
         const delta = Math.min((now - previous) / 1000, 0.1); previous = now;
-        const sx = (x: number) => (x + 14) * 20;
-        const sy = (z: number) => (z + 11) * 20;
-        context.fillStyle = '#9bcea8'; context.fillRect(0, 0, 560, 440);
+        const sx = (x: number) => (x + MAP_OFFSET_X) * MAP_SCALE;
+        const sy = (z: number) => (z + MAP_OFFSET_Z) * MAP_SCALE;
+        context.fillStyle = '#9bcea8'; context.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT);
         context.strokeStyle = '#d18c59'; context.lineWidth = 32; context.beginPath();
         battlefield.path.forEach(([x,z], i) => { if (!i) context.moveTo(sx(x), sy(z)); else context.lineTo(sx(x), sy(z)); }); context.stroke();
         for (const tower of target.current.towers) { context.fillStyle = TOWERS[tower.type].color; context.fillRect(sx(tower.x) - 7, sy(tower.z) - 7, 14, 14); }
@@ -31,7 +37,7 @@ function SpectatorMap({ snapshot }: { snapshot: Snapshot }) {
         for (const id of positions.current.keys()) if (!ids.has(id)) positions.current.delete(id);
         for (const enemy of target.current.enemies) {
           const p = positions.current.get(enemy.id) ?? { x: enemy.x, z: enemy.z };
-          const alpha = 1 - Math.exp(-delta * 14);
+          const alpha = 1 - Math.exp(-delta * SMOOTHING);
           p.x += (enemy.x - p.x) * alpha; p.z += (enemy.z - p.z) * alpha;
           positions.current.set(enemy.id, p);
           context.fillStyle = ENEMIES[enemy.type].color; context.beginPath(); context.arc(sx(p.x), sy(p.z), 5, 0, Math.PI * 2); context.fill();
@@ -41,7 +47,7 @@ function SpectatorMap({ snapshot }: { snapshot: Snapshot }) {
     };
     frame = requestAnimationFrame(draw); return () => cancelAnimationFrame(frame);
   }, []);
-  return <canvas className="spectator-map" ref={canvas} width={560} height={440} aria-label="Трансляция поля боя: квадраты — башни, круги — враги"/>;
+  return <canvas className="spectator-map" ref={canvas} width={MAP_WIDTH} height={MAP_HEIGHT} aria-label="Трансляция поля боя: квадраты — башни, круги — враги"/>;
 }
 export function useSpectator(gameId: string | null) {
   const socket = useRef<Socket | null>(null);
@@ -68,7 +74,7 @@ export function useSpectator(gameId: string | null) {
       socket.current?.emit('snapshot', { gold: s.gold, baseHp: s.baseHp, wave: s.wave, score: s.score,
         enemies: s.enemies.map(({ id, type, x, z, hp, maxHp }) => ({ id, type, x, z, hp, maxHp })),
         towers: s.towers.map(({ id, type, x, z, level }) => ({ id, type, x, z, level })) });
-    }, 200);
+    }, SNAPSHOT_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [hosting]);
   function connect(mode: 'host' | 'watch') {
