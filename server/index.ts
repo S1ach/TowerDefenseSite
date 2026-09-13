@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import express, { type ErrorRequestHandler } from 'express';
 import cors from 'cors';
 import { createServer } from 'node:http';
@@ -7,12 +6,14 @@ import { ZodError } from 'zod';
 import { router } from './routes';
 import { attachRealtime } from './realtime';
 import { db } from './db';
+import { clientOrigin, port } from './config';
+
 const app = express();
 app.disable('x-powered-by');
-const origin = process.env.CLIENT_ORIGIN ?? 'http://127.0.0.1:5173';
-app.use(cors({ origin, credentials: true }));
+app.use(cors({ origin: clientOrigin, credentials: true }));
 app.use((req, res, next) => {
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers.origin && req.headers.origin !== origin) { res.status(403).json({ error: 'Источник запроса запрещён.' }); return; }
+  const mutating = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+  if (mutating && req.headers.origin && req.headers.origin !== clientOrigin) { res.status(403).json({ error: 'Источник запроса запрещён.' }); return; }
   next();
 });
 app.use(express.json({ limit: '128kb' }));
@@ -28,6 +29,6 @@ const errors: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
 app.use(errors);
 const server = createServer(app);
 const io = attachRealtime(server);
-server.listen(Number(process.env.PORT ?? 3001), '127.0.0.1', () => console.log('Sentinel API: http://127.0.0.1:3001'));
+server.listen(port, '127.0.0.1', () => console.log(`Sentinel API: http://127.0.0.1:${port}`));
 const stop = () => { io.close(); server.close(); void db.$disconnect().finally(() => process.exit(0)); };
 process.on('SIGTERM', stop); process.on('SIGINT', stop);

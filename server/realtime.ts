@@ -3,13 +3,16 @@ import type { Server as HttpServer } from 'node:http';
 import { z } from 'zod';
 import { db } from './db';
 import { userFromCookie } from './auth';
+import { clientOrigin } from './config';
+
+/** Hosts may push at most one snapshot per interval; faster ones are dropped. */
+const SNAPSHOT_MIN_INTERVAL_MS = 190;
 const snapshotSchema = z.object({ gold: z.number().int().min(0).max(1000000), baseHp: z.number().min(0).max(20), wave: z.number().int().min(0).max(12), score: z.number().min(0).max(100000000),
   enemies: z.array(z.object({ id: z.number().int(), x: z.number().min(-14).max(14), z: z.number().min(-11).max(11), hp: z.number().min(0), maxHp: z.number().positive(), type: z.enum(['basic','fast','tank']) })).max(512),
   towers: z.array(z.object({ id: z.number().int(), x: z.number().min(-14).max(14), z: z.number().min(-11).max(11), type: z.enum(['machine','cannon','sniper']), level: z.number().int().min(1).max(3) })).max(150),
 });
 export function attachRealtime(server: HttpServer) {
-  const origin = process.env.CLIENT_ORIGIN ?? 'http://127.0.0.1:5173';
-  const io = new Server(server, { cors: { origin, credentials: true }, maxHttpBufferSize: 100000, allowRequest: (req, callback) => callback(null, !req.headers.origin || req.headers.origin === origin) });
+  const io = new Server(server, { cors: { origin: clientOrigin, credentials: true }, maxHttpBufferSize: 100000, allowRequest: (req, callback) => callback(null, !req.headers.origin || req.headers.origin === clientOrigin) });
   const hosts = new Map<string, string>();
   io.on('connection', socket => {
     let hosted: string | null = null;
@@ -32,7 +35,7 @@ export function attachRealtime(server: HttpServer) {
       watched = result.data; void socket.join(watched); socket.emit('watching', watched);
     });
     socket.on('snapshot', (input: unknown) => {
-      if (!hosted || Date.now() - last < 190) return;
+      if (!hosted || Date.now() - last < SNAPSHOT_MIN_INTERVAL_MS) return;
       const parsed = snapshotSchema.safeParse(input);
       if (!parsed.success) return;
       last = Date.now(); socket.to(hosted).emit('snapshot', parsed.data);
