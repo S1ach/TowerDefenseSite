@@ -13,23 +13,23 @@ import {
 import { battlefield } from '../../game/config/battlefield';
 import { distanceToPath } from '../../game/math/path';
 import { LANDMARKS, fieldRadius, outlineAngles, outlineRadius, roadCenterline } from './terrain/layout';
+import { isDrag } from './pointer';
 
-// ───────────────────────── scenery (edit by hand) ─────────────────────────
-/** Temporary placement aids: axes and a console.log of the clicked ground point. Set to false when done. */
-const DEBUG = true;
+/** Placement aids for hand-editing OBJECTS: axes, a console line with the clicked ground point, and layout warnings. */
+const DEBUG = false;
 
-/** 'tree' — ёлка, 'round' — лиственное дерево, 'rock' — камень. */
+/** 'tree' is a pine, 'round' a leafy tree, 'rock' a boulder. */
 export type SceneryType = 'tree' | 'round' | 'rock';
-/** rotY (радианы) и scale необязательны: без rotY поворот берётся из номера строки, без scale — 1. */
+/** rotY (radians) and scale are optional: the yaw defaults to a value derived from the row index, the scale to 1. */
 export interface SceneryObject { type: SceneryType; x: number; z: number; rotY?: number; scale?: number }
 
 /**
- * Единственный источник расстановки. Поле занимает |x| ≤ 13, |z| ≤ 10, обод острова доходит примерно до |x| ≤ 15, |z| ≤ 12
- * (по углам меньше). Портал стоит в (-14, 5), крепость в (14, -5): вокруг них оставлено свободное место.
- * Высота не задаётся: остров плоский, всё стоит на y = 0.
+ * Single source of scenery placement. The field spans |x| <= 13, |z| <= 10; the rim reaches roughly |x| <= 15, |z| <= 12
+ * (less at the corners). The portal stands at (-14, 5) and the keep at (14, -5); keep their surroundings clear.
+ * No height is given: the island top is flat, everything stands at y = 0.
  */
 export const OBJECTS: SceneryObject[] = [
-  // северный край (z = -11 … -12)
+  // north edge (z = -11 … -12)
   { type: 'tree', x: -5, z: -11 },
   { type: 'round', x: -5, z: -12, rotY: 0.8 },
   { type: 'tree', x: -3.5, z: -11, scale: 1.1 },
@@ -38,7 +38,7 @@ export const OBJECTS: SceneryObject[] = [
   { type: 'round', x: -7, z: -12, rotY: 2.1 },
   { type: 'tree', x: 8, z: -11, scale: 1.15 },
   { type: 'rock', x: 11, z: -11, rotY: 1.3, scale: 1.2 },
-  // восточный край (x = 14 … 15), крепость в (14, -5)
+  // east edge (x = 14 … 15), keep at (14, -5)
   { type: 'round', x: 12, z: -9, rotY: 0.3 },
   { type: 'tree', x: 15, z: -1, scale: 1.1 },
   { type: 'tree', x: 15, z: 7, scale: 1.1 },
@@ -46,7 +46,7 @@ export const OBJECTS: SceneryObject[] = [
   { type: 'round', x: 14, z: 3, rotY: 1.6 },
   { type: 'tree', x: 14, z: 6 },
   { type: 'rock', x: 13.8, z: 7.5, rotY: 2.1, scale: 1.1 },
-  // южный край (z = 11 … 12)
+  // south edge (z = 11 … 12)
   { type: 'tree', x: 2.5, z: 11, scale: 1.05 },
   { type: 'round', x: 7, z: 12, rotY: 0.9 },
   { type: 'rock', x: 1, z: 11, rotY: 1.1, scale: 0.7 },
@@ -55,7 +55,7 @@ export const OBJECTS: SceneryObject[] = [
   { type: 'rock', x: -8, z: 11.5, rotY: 0.2, scale: 1.3 },
   { type: 'round', x: -10, z: 11, rotY: 2.8 },
   { type: 'tree', x: -12, z: 11, scale: 1.1 },
-  // западный край (x = -14 … -15), портал в (-14, 5)
+  // west edge (x = -14 … -15), portal at (-14, 5)
   { type: 'tree', x: -14, z: -1, scale: 1.2 },
   { type: 'rock', x: -15, z: -5, rotY: 1.9, scale: 1.0 },
   { type: 'round', x: -14, z: -2.5, rotY: 0.5 },
@@ -74,7 +74,6 @@ export const palette = {
   wallStone: '#a3a39c', wallDark: '#7d7d77', roof: '#c2694f', portal: '#3e3a55',
 };
 
-// ───────────────────────── geometry helpers ─────────────────────────
 type Vec = [number, number, number];
 const Y_AXIS = new Vector3(0, 1, 0);
 /** Cheap deterministic hash in [0, 1) for per-face colour jitter (gives low-poly facets some life). */
@@ -125,7 +124,6 @@ function placed(geometry: BufferGeometry, [x, y, z]: Vec, rotationY = 0, scale: 
   return geometry.applyMatrix4(new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromAxisAngle(Y_AXIS, rotationY), new Vector3(...s)));
 }
 
-// ───────────────────────── terrain ─────────────────────────
 /** Cliff rings from the grass lip down to the rock tip: [height, outline scale, noise amplitude, band colour]. */
 const CLIFF_LAYERS = [
   { y: 0, scale: 1, noise: 0, color: palette.grassSide },        // grass edge, exact outline
@@ -208,15 +206,14 @@ function buildTerrain() {
   return builder.build();
 }
 
-// ───────────────────────── props (instanced) ─────────────────────────
 /** Ground height under a scenery object. The island top is flat, so it is 0 everywhere on the island. */
 export function groundHeight(_x: number, _z: number) { return 0; }
 /** Returns a human-readable problem for an object that would float or sit on the road, or null if it is fine. */
 export function sceneryProblem({ x, z }: SceneryObject): string | null {
   const theta = Math.atan2(z, x), radius = Math.hypot(x, z);
-  if (radius > outlineRadius(theta) - 0.3) return 'за краем острова (повиснет в воздухе)';
-  if (distanceToPath({ x, z }) < battlefield.roadWidth / 2 + 0.6) return 'на дороге';
-  for (const [name, [lx, lz]] of Object.entries(LANDMARKS)) if (Math.hypot(x - lx, z - lz) < 2.4) return `внутри ${name === 'spawn' ? 'портала' : 'крепости'}`;
+  if (radius > outlineRadius(theta) - 0.3) return 'beyond the cliff edge (would float)';
+  if (distanceToPath({ x, z }) < battlefield.roadWidth / 2 + 0.6) return 'on the road';
+  for (const [name, [lx, lz]] of Object.entries(LANDMARKS)) if (Math.hypot(x - lx, z - lz) < 2.4) return `inside the ${name}`;
   return null;
 }
 function propGeometry(kind: SceneryType) {
@@ -274,7 +271,7 @@ export function IslandTerrain() {
   const material = useMemo(() => new MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, metalness: 0 }), []);
   useEffect(() => () => { geometry.dispose(); material.dispose(); }, [geometry, material]);
   // pointerup instead of click: the invisible build plane above the field stops click propagation.
-  const logGround = DEBUG ? (event: { delta: number; point: Vector3 }) => { if (event.delta < 5) console.log(`ground: x ${Math.round(event.point.x)}, z ${Math.round(event.point.z)}  (exact ${event.point.x.toFixed(2)}, ${event.point.z.toFixed(2)})`); } : undefined;
+  const logGround = DEBUG ? (event: { delta: number; point: Vector3 }) => { if (!isDrag(event)) console.log(`ground: x ${Math.round(event.point.x)}, z ${Math.round(event.point.z)}  (exact ${event.point.x.toFixed(2)}, ${event.point.z.toFixed(2)})`); } : undefined;
   return <group name="IslandTerrain">
     <mesh geometry={geometry} material={material} castShadow receiveShadow onPointerUp={logGround} />
     {(['tree', 'round', 'rock'] as const).map(kind => <Props key={kind} kind={kind} material={material} />)}
@@ -282,7 +279,6 @@ export function IslandTerrain() {
   </group>;
 }
 
-// ───────────────────────── sky, light, sway ─────────────────────────
 const SKY_VERTEX = /* glsl */ `varying vec3 vDirection; void main() { vDirection = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const SKY_FRAGMENT = /* glsl */ `
   uniform vec3 top; uniform vec3 horizon; uniform vec3 bottom; varying vec3 vDirection;

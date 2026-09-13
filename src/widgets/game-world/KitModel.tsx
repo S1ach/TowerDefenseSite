@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { Mesh, type Material } from 'three';
+import { Mesh, type BufferGeometry, type Material, type MeshStandardMaterial } from 'three';
 
 export const kitUrl = (name: string) => `/models/kenney/${name}.glb`;
 export const weapons = { machine: 'weapon-turret', cannon: 'weapon-cannon', sniper: 'weapon-ballista' } as const;
@@ -27,7 +27,7 @@ export function KitModel({ name, ghost = false, color }: { name: string; ghost?:
         const clone = (material: Material) => {
           const copy = material.clone();
           copy.transparent = true; copy.opacity = 0.48; copy.depthWrite = false;
-          if ('color' in copy) (copy as import('three').MeshStandardMaterial).color.set(color ?? '#75d998');
+          if ('color' in copy) (copy as MeshStandardMaterial).color.set(color ?? '#75d998');
           materials.push(copy); return copy;
         };
         node.material = Array.isArray(node.material) ? node.material.map(clone) : clone(node.material);
@@ -44,7 +44,7 @@ export function useKitParts(name: string) {
   const { scene } = useGLTF(kitUrl(name));
   const parts = useMemo(() => {
     scene.updateMatrixWorld(true);
-    const result: { geometry: import('three').BufferGeometry; material: Material | Material[] }[] = [];
+    const result: { geometry: BufferGeometry; material: Material | Material[] }[] = [];
     scene.traverse(node => {
       if (node instanceof Mesh) result.push({ geometry: node.geometry.clone().applyMatrix4(node.matrixWorld), material: node.material });
     });
