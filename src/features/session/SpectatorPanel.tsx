@@ -23,8 +23,8 @@ function SpectatorMap({ snapshot }: { snapshot: Snapshot }) {
         const delta = Math.min((now - previous) / 1000, 0.1); previous = now;
         const sx = (x: number) => (x + 14) * 20;
         const sy = (z: number) => (z + 11) * 20;
-        context.fillStyle = '#203b2d'; context.fillRect(0, 0, 560, 440);
-        context.strokeStyle = '#9fae91'; context.lineWidth = 32; context.beginPath();
+        context.fillStyle = '#9bcea8'; context.fillRect(0, 0, 560, 440);
+        context.strokeStyle = '#d18c59'; context.lineWidth = 32; context.beginPath();
         battlefield.path.forEach(([x,z], i) => { if (!i) context.moveTo(sx(x), sy(z)); else context.lineTo(sx(x), sy(z)); }); context.stroke();
         for (const tower of target.current.towers) { context.fillStyle = TOWERS[tower.type].color; context.fillRect(sx(tower.x) - 7, sy(tower.z) - 7, 14, 14); }
         const ids = new Set(target.current.enemies.map(e => e.id));

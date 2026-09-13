@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { engine } from '../../game/core/GameEngine';
 import { statsFor } from '../../game/config/balance';
 import type { Position } from '../../game/entities/types';
@@ -23,7 +24,23 @@ export function Building() {
       <planeGeometry args={[26, 20]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
     </mesh>
     {type && hover && <>
-      <group position={[hover.x, 0, hover.z]}><TowerModel type={type} ghost color={valid ? '#baf27d' : '#ff626e'} /></group>
+      <group position={[hover.x, 0, hover.z]}>
+        <TowerModel type={type} ghost color={valid ? '#baf27d' : '#ff626e'} />
+        <mesh position={[0, 0.09, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[1.5, 1.5]} />
+          <meshBasicMaterial color={valid ? '#47ad71' : '#e54d60'} transparent opacity={0.25} depthWrite={false} />
+        </mesh>
+        <mesh position={[0, 0.1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.12, 0.2, 24]} />
+          <meshBasicMaterial color={valid ? '#247947' : '#bc2940'} depthWrite={false} />
+        </mesh>
+        <Html position={[0, 2.2, 0]} center style={{ pointerEvents: 'none' }} zIndexRange={[1, 0]}>
+          <div className={`placement-marker ${valid ? '' : 'invalid'}`}>
+            <strong>{valid ? '✓ Можно поставить' : '✕ Нельзя поставить'}</strong>
+            <span>X: {hover.x} · Z: {hover.z}</span>
+          </div>
+        </Html>
+      </group>
       <Range x={hover.x} z={hover.z} radius={statsFor(type, 1).range} color={valid ? '#baf27d' : '#ff626e'} />
     </>}
   </>;

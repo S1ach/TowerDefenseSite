@@ -7,8 +7,8 @@ export const battlefield = {
   path: [[-13, 5], [-7, 5], [-7, -4], [0, -4], [0, 4], [7, 4], [7, -5], [13, -5]] as readonly GroundPoint[],
 };
 export const cameraConfig = {
-  position: [26, 29, 30] as [number, number, number],
-  target: [0, 0, 0] as [number, number, number],
+  position: [24, 28, 29] as [number, number, number],
+  target: [0, -3, 0] as [number, number, number],
   minDistance: 19,
   maxDistance: 55,
 };

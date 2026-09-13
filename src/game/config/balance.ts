@@ -1,13 +1,13 @@
 import type { EnemyType, TowerType, WaveConfig } from '../entities/types';
 export const TOWERS = {
-  machine: { name: 'Пулемёт', cost: 100, damage: 8, range: 4.4, fireRate: 4, projectileSpeed: 28, color: '#baf27d', description: 'Частые выстрелы. Хорош против быстрых целей.' },
-  cannon: { name: 'Пушка', cost: 180, damage: 45, range: 5.4, fireRate: 0.85, projectileSpeed: 15, color: '#ffbd78', description: 'Тяжёлые снаряды. Универсальная защита.' },
-  sniper: { name: 'Снайпер', cost: 250, damage: 130, range: 9, fireRate: 0.34, projectileSpeed: 65, color: '#8dddfb', description: 'Большая дальность. Пробивает тяжёлые цели.' },
+  machine: { name: 'Пулемёт', cost: 100, damage: 8, range: 4.4, fireRate: 4, projectileSpeed: 28, color: '#5b47b7', description: 'Частые выстрелы. Хорош против быстрых целей.' },
+  cannon: { name: 'Пушка', cost: 180, damage: 45, range: 5.4, fireRate: 0.85, projectileSpeed: 15, color: '#cd632b', description: 'Тяжёлые снаряды. Универсальная защита.' },
+  sniper: { name: 'Баллиста', cost: 250, damage: 130, range: 9, fireRate: 0.34, projectileSpeed: 65, color: '#277ea2', description: 'Большая дальность. Пробивает тяжёлые цели.' },
 } satisfies Record<TowerType, { name: string; cost: number; damage: number; range: number; fireRate: number; projectileSpeed: number; color: string; description: string }>;
 export const ENEMIES = {
-  basic: { name: 'Пехота', hp: 65, speed: 1.65, reward: 12, damage: 1, color: '#f6b980' },
-  fast: { name: 'Разведчик', hp: 40, speed: 3.2, reward: 14, damage: 1, color: '#f78aaa' },
-  tank: { name: 'Танк', hp: 330, speed: 0.95, reward: 38, damage: 3, color: '#b8a2fa' },
+  basic: { name: 'Тарелка', hp: 65, speed: 1.65, reward: 12, damage: 1, color: '#bc581e' },
+  fast: { name: 'Перехватчик', hp: 40, speed: 3.2, reward: 14, damage: 1, color: '#ac4079' },
+  tank: { name: 'Тяжёлый НЛО', hp: 330, speed: 0.95, reward: 38, damage: 3, color: '#7254ba' },
 } satisfies Record<EnemyType, { name: string; hp: number; speed: number; reward: number; damage: number; color: string }>;
 export const WAVES: WaveConfig[] = Array.from({ length: 12 }, (_, i) => ({ wave: i + 1, enemies: [
   { type: 'basic', count: 10 + i * 2, spawnInterval: Math.max(0.35, 0.9 - i * 0.035) },

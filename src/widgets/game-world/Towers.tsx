@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, type Ref } from 'react';
+import { KitModel, weapons } from './KitModel';
 import { useFrame } from '@react-three/fiber';
 import type { Group } from 'three';
 import { engine } from '../../game/core/GameEngine';
@@ -6,16 +7,16 @@ import type { Tower, TowerType } from '../../game/entities/types';
 import { statsFor, TOWERS } from '../../game/config/balance';
 import { selectTower, useAppDispatch, useAppSelector } from '../../app/store/store';
 
-export function TowerModel({ type, level = 1, ghost = false, color }: { type: TowerType; level?: number; ghost?: boolean; color?: string }) {
-  const tint = color ?? TOWERS[type].color;
-  return <group>
-    <mesh castShadow={!ghost} position={[0, 0.15, 0]}><cylinderGeometry args={[0.6, 0.7, 0.3, 6]} /><meshStandardMaterial color={ghost ? tint : '#273c37'} transparent={ghost} opacity={0.5} /></mesh>
-    <mesh castShadow={!ghost} position={[0, 0.52, 0]}><boxGeometry args={[0.65, 0.5 + level * 0.1, 0.65]} /><meshStandardMaterial color={tint} transparent={ghost} opacity={0.5} metalness={0.5} roughness={0.4} /></mesh>
-    <mesh castShadow={!ghost} position={[0, 0.78, 0.55]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[type === 'cannon' ? 0.17 : 0.08, 0.13, type === 'sniper' ? 1.4 : 0.85, 8]} /><meshStandardMaterial color={ghost ? tint : '#dce8da'} transparent={ghost} opacity={0.5} /></mesh>
-    {Array.from({ length: level }, (_, i) => <mesh key={i} position={[(i - (level - 1) / 2) * 0.18, 0.98, 0]}><boxGeometry args={[0.1, 0.08, 0.12]} /><meshBasicMaterial color={tint} /></mesh>)}
+export function TowerModel({ type, level = 1, ghost = false, color, turretRef }: { type: TowerType; level?: number; ghost?: boolean; color?: string; turretRef?: Ref<Group> }) {
+  const foundation = level === 3 ? 'tower-round-bottom-c' : level === 2 ? 'tower-round-bottom-b' : 'tower-round-bottom-a';
+  const height = 0.6 + (level - 1) * 0.2;
+  return <group scale={1.25}>
+    <group scale={[1, height / 0.6, 1]}><KitModel name={foundation} ghost={ghost} color={color} /></group>
+    <group position={[0, height, 0]}><KitModel name="tower-round-top-a" ghost={ghost} color={color} /></group>
+    <group ref={turretRef} position={[0, height + 0.27, 0]}><KitModel name={weapons[type]} ghost={ghost} color={color} /></group>
   </group>;
 }
-export function Range({ x, z, radius, color = '#d1ff96' }: { x: number; z: number; radius: number; color?: string }) {
+export function Range({ x, z, radius, color = '#694dcc' }: { x: number; z: number; radius: number; color?: string }) {
   return <mesh position={[x, 0.085, z]} rotation={[-Math.PI / 2, 0, 0]}><ringGeometry args={[radius - 0.04, radius, 72]} /><meshBasicMaterial color={color} transparent opacity={0.6} depthWrite={false} /></mesh>;
 }
 function PlacedTower({ tower, selected }: { tower: Tower; selected: boolean }) {
@@ -27,7 +28,7 @@ function PlacedTower({ tower, selected }: { tower: Tower; selected: boolean }) {
     if (turret.current && target) turret.current.rotation.y = Math.atan2(target.x - tower.x, target.z - tower.z);
   });
   return <group position={[tower.x, 0, tower.z]} onClick={event => { event.stopPropagation(); if (event.delta < 5) dispatch(selectTower(tower.id)); }}>
-    <group ref={turret}><TowerModel type={tower.type} level={tower.level} /></group>
+    <TowerModel type={tower.type} level={tower.level} turretRef={turret} />
     {selected && <Range x={0} z={0} radius={0.85} />}
   </group>;
 }
